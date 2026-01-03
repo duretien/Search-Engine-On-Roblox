@@ -1,7 +1,7 @@
 import express from "express";
 import cors from "cors";
-const app = express();
 
+const app = express();
 app.use(cors());
 app.use(express.json());
 
@@ -63,6 +63,44 @@ const documents = [
     { id: 50, title: "Roblox Avatar", description: "The character representing a player.", tags: ["roblox", "character"] }
 ];
 
+// LEVENSHTEIN DISTANCE (for Did-You-Mean)
+function levenshtein(a, b) {
+    const matrix = [];
+
+    for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+    for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+
+    for (let i = 1; i <= b.length; i++) {
+        for (let j = 1; j <= a.length; j++) {
+            matrix[i][j] = b[i - 1] === a[j - 1]
+                ? matrix[i - 1][j - 1]
+                : Math.min(
+                    matrix[i - 1][j - 1] + 1,
+                    matrix[i][j - 1] + 1,
+                    matrix[i - 1][j] + 1
+                );
+        }
+    }
+
+    return matrix[b.length][a.length];
+}
+
+// FIND CLOSEST MATCH
+function findClosestMatch(query) {
+    let best = null;
+    let bestDistance = Infinity;
+
+    for (const doc of documents) {
+        const distance = levenshtein(query, doc.title.toLowerCase());
+        if (distance < bestDistance) {
+            bestDistance = distance;
+            best = doc.title;
+        }
+    }
+
+    return bestDistance <= 3 ? best : null;
+}
+
 // SEARCH ENDPOINT
 app.get("/search", (req, res) => {
     const q = (req.query.q || "").toLowerCase();
@@ -73,9 +111,16 @@ app.get("/search", (req, res) => {
         doc.tags.some(tag => tag.toLowerCase().includes(q))
     );
 
+    let suggestion = null;
+
+    if (results.length === 0 && q.length > 2) {
+        suggestion = findClosestMatch(q);
+    }
+
     res.json({
         query: q,
         total: results.length,
+        didYouMean: suggestion,
         results: results
     });
 });
