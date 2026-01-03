@@ -1,3 +1,11 @@
+const express = require("express");
+const cors = require("cors");
+const app = express();
+
+app.use(cors());
+app.use(express.json());
+
+// MASSIVE 50-ITEM DATASET
 const documents = [
     { id: 1, title: "Gravity", description: "A force that pulls objects toward each other.", tags: ["physics", "science", "forces"] },
     { id: 2, title: "Velocity", description: "Speed in a given direction.", tags: ["physics", "motion", "speed"] },
@@ -54,3 +62,26 @@ const documents = [
     { id: 49, title: "Roblox Marketplace", description: "A place to buy and sell assets.", tags: ["roblox", "economy"] },
     { id: 50, title: "Roblox Avatar", description: "The character representing a player.", tags: ["roblox", "character"] }
 ];
+
+// SEARCH ENDPOINT
+app.get("/search", (req, res) => {
+    const q = (req.query.q || "").toLowerCase();
+
+    const results = documents.filter(doc =>
+        doc.title.toLowerCase().includes(q) ||
+        doc.description.toLowerCase().includes(q) ||
+        doc.tags.some(tag => tag.toLowerCase().includes(q))
+    );
+
+    res.json({
+        query: q,
+        total: results.length,
+        results: results
+    });
+});
+
+// START SERVER
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`Search API running on port ${PORT}`);
+});
